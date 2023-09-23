@@ -1,0 +1,6 @@
+.git*
+README.md
+Dockerfile
+__pycache__
+docker-compose*.yml
+last-commit.svg

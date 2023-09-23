@@ -1,0 +1,218 @@
+  workflow:
+    rules:
+# Если целевая ветка dev
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" && $CI_PIPELINE_SOURCE == "merge_request_event"
+# Если результатом стало объединение
+      - if: $CI_MERGE_REQUEST_EVENT_TYPE == "merged_result"
+# Если открыт Merge Request
+#      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+# Если необходима возможность запуска по тригеру
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+# Если необходима возможность запуска по нажатию кнопки Run pipeline в проекте CI/CD > Pipelines section
+      - if: $CI_PIPELINE_SOURCE == "web"
+# Если Merge Request был принят "Approve" c 14.1
+#      - if: CI_MERGE_REQUEST_APPROVED == "true"
+# Если был коммит в ветку dev происходит запуск Pipeline
+#      - if: '$CI_COMMIT_BRANCH' == "dev"'
+# Если главная ветка проекта будет dev
+#      - if: '$CI_DEFAULT_BRANCH == "dev"'
+
+  include:  
+    # Подгрузка кода линтера  
+    - project: 'ci_cd/python/pylint'
+      ref: 'master'
+      file: 'pylint.yml'
+    - project: 'ci_cd/python/pylint'
+      ref: 'master'
+      file: 'isort.yml'
+    - project: 'ci_cd/python/pylint'
+      ref: 'master'
+      file: 'black.yml'
+    - project: 'ci_cd/python/pylint'
+      ref: 'master'
+      file: 'bandit.yml'
+    # Тестирование проекта на Python  
+    - project: 'ci_cd/python/pytest'  
+      ref: 'master'  
+      file: 'pytest.yml' 
+    # Присвоение тега проекту
+    - project: 'ci_cd/shared/tag'
+      ref: 'master'
+      file: 'tag.yml'
+    # Последний commit
+    - project: 'ci_cd/shared/last_commit'
+      ref: 'master'
+      file: 'last_commit.yml'
+    # Общее число commit
+    - project: 'ci_cd/shared/commits_count'
+      ref: 'master'
+      file: 'commits_count.yml'
+    # Информирование о статусе pipeline в Telegram
+    - project: 'ci_cd/shared/telegram_informer'
+      ref: 'master'
+      file: 'telegram_informer.yml'
+
+  variables:
+    RUN_DIR: "/opt/services/api_ai"
+    PYTHONPATH: "$CI_PROJECT_DIR"
+    FF_USE_FASTZIP: "true"
+    ARTIFACT_COMPRESSION_LEVEL: "fast"
+    CACHE_COMPRESSION_LEVEL: "fast"
+
+  stages:
+    - lint
+    - test
+    - run
+    - clean
+    - tag
+    - notify
+
+### Линтер  
+  pylint:
+    stage: lint
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    extends: .pylint
+    allow_failure: true
+    tags:
+      - tis5000
+
+  isort:
+    stage: lint
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    extends: .isort
+    allow_failure: true
+    tags:
+      - tis5000
+
+  black:
+    stage: lint
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    extends: .black
+    allow_failure: true
+    tags:
+      - tis5000
+
+  bandit:
+    stage: lint
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    extends: .bandit
+    allow_failure: true
+    tags:
+      - tis5000
+
+### Тестирование проекта на Python  
+  pytest:  
+    stage: test  
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    extends: .pytest  
+    allow_failure: true
+    tags:
+      - tis5000
+
+  run_app_dev:
+    stage: run
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    script:
+      - 'rsync -avO --no-perms --no-owner --no-group --exclude ".git/" --exclude "tests/" $CI_PROJECT_DIR/ $RUN_DIR'
+      - cd $RUN_DIR
+      - docker-compose down --rmi all --remove-orphans
+      - docker-compose up -d
+    allow_failure: false
+    tags:
+      - tis5000
+
+  run_app_pre-prod:
+    stage: run
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    before_script:
+      - 'rsync -avO --no-perms --no-owner --no-group --exclude ".git/" --exclude "tests/" $CI_PROJECT_DIR/ $RUN_DIR'
+      - cd $RUN_DIR
+      - VERSION=$(sed -i '2,$d' .VERSION && cat .VERSION | cut -d "=" -f2)
+      - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      - 'echo Автоматически определенный адрес Gitlab-registry: $CI_REGISTRY'
+      - 'echo Номер пайплайна: $CI_PIPELINE_IID'
+      - 'echo Вывод версии из файла: $VERSION'
+      - 'echo Выводит название ветки из которой код исполняется на сервере: $CI_COMMIT_REF_SLUG'
+      - 'echo Название образа включая полный путь: $CI_REGISTRY_IMAGE'
+    script:
+      - docker-compose down --remove-orphans --rmi all
+      - docker build -t $CI_REGISTRY_IMAGE:$VERSION -t $CI_REGISTRY_IMAGE:latest .
+      - docker push $CI_REGISTRY_IMAGE:$VERSION
+      - docker push $CI_REGISTRY_IMAGE:latest
+      - docker save $CI_REGISTRY_IMAGE:latest > $RUN_DIR/api_ai.tar
+      - docker-compose up -d
+      - echo $(date '+%d.%m.%Y_%H.%M')
+      - zip -r "api_ai_$(date '+%d.%m.%Y_%H.%M')".zip app/ docker-compose.yml gunicorn.conf.py api_ai.tar
+      - mv *.zip /media/backup/tis/RELEASES/ASDS/
+      - rm -f *.tar
+    after_script:
+      - docker logout $CI_REGISTRY
+    allow_failure: false
+    tags:
+      - tis5000 
+
+  clean: 
+    stage: clean
+    script:
+      - docker image prune --filter="dangling=true" -f
+    allow_failure: true
+
+### Формирование тега
+  tag:
+    stage: tag
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    when: on_success
+    extends: .tag
+    allow_failure: false
+    tags:
+      - tis5000
+
+### Бадж последнего коммита
+  last_commit:
+    stage: notify
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    when: on_success
+    extends: .last_commit
+    tags:
+      - tis5000
+
+### Бадж количества коммитов
+  commits_count:
+    stage: notify
+    rules:
+      - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+    when: on_success
+    extends: .commits_count
+    tags:
+      - tis5000
+      
+### Информер
+  notify-sucess:
+    stage: notify
+    when: on_success
+    extends: .notify-sucess
+
+  notify-failure:
+    stage: notify
+    when: on_failure
+    extends: .notify-failure

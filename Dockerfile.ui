@@ -1,0 +1,16 @@
+FROM apache/superset:1583090623c5083de504ad1e1710b894f0dc7f67
+USER root
+
+RUN apt-get update && \
+    apt-get install -y wget zip unzip tar nano telnet && \
+    wget -q https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_102.0.5005.115-1_amd64.deb && \
+    apt-get install -y --no-install-recommends ./google-chrome-stable_102.0.5005.115-1_amd64.deb && \
+    rm -f google-chrome-stable_102.0.5005.115-1_amd64.deb && \
+    wget -q https://chromedriver.storage.googleapis.com/102.0.5005.61/chromedriver_linux64.zip && \
+    unzip chromedriver_linux64.zip -d /usr/bin && \
+    chmod 755 /usr/bin/chromedriver && \
+    rm -f chromedriver_linux64.zip && \
+    pip install --upgrade pip && \
+    pip install --no-cache gevent psycopg2 redis clickhouse-connect clickhouse-driver clickhouse-sqlalchemy celery gunicorn flower && \
+    pip install --no-cache -r superset/translations/requirements.txt
+USER superset

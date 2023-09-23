@@ -1,0 +1,18 @@
+    <clickhouse>
+      <!-- Docs: <https://clickhouse.com/docs/en/operations/settings/settings_users/> -->
+      <users>
+        <!-- Remove default user -->
+        <default remove="remove">
+        </default>
+
+        <hakaton>
+          <profile>default</profile>
+          <networks>
+            <ip>::/0</ip>
+          </networks>
+          <password>hakatoN420M3haK</password>
+          <quota>default</quota>
+          <access_management>0</access_management>
+        </hakaton>
+      </users>
+    </clickhouse>
