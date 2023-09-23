@@ -1,5 +1,0 @@
-*.bin filter=lfs diff=lfs merge=lfs -text
-*.pth filter=lfs diff=lfs merge=lfs -text
-*.csv filter=lfs diff=lfs merge=lfs -text
-*_cleaned.json filter=lfs diff=lfs merge=lfs -text
-*_cleaned_norm.json filter=lfs diff=lfs merge=lfs -text
