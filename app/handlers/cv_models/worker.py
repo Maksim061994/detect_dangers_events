@@ -37,7 +37,7 @@ class CVWorker:
         async with ClickhouseConnector() as client:
             result = await client.fetch(
                 f"""
-                    select name_file as filename, count() as cases_count, groupArray(m_s) as timestamps
+                    select name_file as filename, count() as cases_count, groupUniqArray(m_s) as timestamps
                     from
                         (
                             select
