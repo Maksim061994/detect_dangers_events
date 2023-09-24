@@ -46,7 +46,7 @@ class CVWorker:
                                     || ':' ||
                                 leftPad(toString(moduloOrZero(seconds, 60)), 2, '0') as m_s
                             from {settings.db_log_processing_video}.{settings.table_log_processing_video}
-                            where submit_id = '{submit_id}' and type_violation in (1, 2)
+                            where submit_id = '{submit_id}' and type_violation in (1)
                             order by name_file, seconds
                         )
                     group by name_file
