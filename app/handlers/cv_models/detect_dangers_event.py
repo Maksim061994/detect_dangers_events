@@ -138,8 +138,13 @@ class DetectorDangerEvent():
 
         shape_image = image.shape[1], image.shape[0]
 
-        if count_status == 20:
+        if count_status == 50:
             status = False
+
+        if (count_alarm == 50) & (alarm_status == True):
+            alarm_status = False
+            label = 3
+            df.loc[len(df)] = label, count_frame
 
         predict_yolo = MODEL_DETECTION.predict(
             source=image, classes=self.class_list, conf=self.conf_yolo, verbose=False
@@ -147,11 +152,8 @@ class DetectorDangerEvent():
         bbox = predict_yolo[0].boxes.data.detach().cpu().numpy()
         bbox_data = bbox[bbox[:, -1] != 7][:, :-2].astype(int)
 
-        if len(bbox_data) == 0:
-            count_status += 1
-            count_alarm += 1
+        if len(bbox_data) != 0:
 
-        else:
             predict_segment = self.__predict_rails_way(image, (shape_image))
             binary_danger_area = self.__danger_area(predict_segment)
 
@@ -164,14 +166,17 @@ class DetectorDangerEvent():
 
                     label = 1
                     status = True
-                    count_status = 0
+                    count_status = -1
+                    count_alarm -= 1
                     df.loc[len(df)] = label, count_frame
+                    break
 
                 elif summary_check > 10:
-                    count_status = 0
+                    count_status = -1
+                    count_alarm -= 1
+                    break
 
                 else:
-                    count_status += 1
 
                     binary_test_area = self.__warning_area(image)
                     test_area = binary_test_area[i[1]:i[3], i[0]:i[2]]
@@ -182,20 +187,20 @@ class DetectorDangerEvent():
                     if (summary_check > thresholder) & (alarm_status == False):
                         label = 2
                         alarm_status = True
-                        count_alarm = 0
+                        count_alarm = -1
+                        count_status -= 1
                         df.loc[len(df)] = label, count_frame
                         break
 
                     elif summary_check > thresholder:
-                        count_alarm = 0
+                        count_alarm = -1
+                        count_status -= 1
                         break
-
                     else:
-                        count_alarm += 1
-                        if (count_alarm == 20) & (alarm_status == True):
-                            alarm_status = False
-                            label = 3
-                            df.loc[len(df)] = label, count_frame
+                        continue
+
+        count_alarm += 1
+        count_status += 1
         return df, count_status, count_frame, count_alarm, status, alarm_status
 
     def predict(self, video):
