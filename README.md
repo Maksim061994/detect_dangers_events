@@ -6,7 +6,7 @@
  - Submit на тестовой выборке: `submit`
  - Пользовательский интерфейс: https://board.vniizht.ru
  - Ноутбук: `notebooks`
- - Ссылка на API: https://ml.api.vniizht.ru
+ - Ссылка на API: https://ai.api.vniizht.ru
  - Код АПИ: `app`
  - Документация и презентация: `docs`
  - Примеры работы системы: `examples`
