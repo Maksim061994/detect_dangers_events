@@ -49,4 +49,4 @@ docker exec -it data_science_ui superset init;
  - ip_host:5555/dashboard - Flower (отслеживание работы Celery)\
  
 6. Авторизоваться в Superset используя имя и пароль заданные выше
- - Загрузить Dashboard из сохраненного шаблона: dashboard_export_20230923T205330.zip
+ - Загрузить Dashboard из сохраненного шаблона: dashboards/dashboard_export_20230923T205330.zip
